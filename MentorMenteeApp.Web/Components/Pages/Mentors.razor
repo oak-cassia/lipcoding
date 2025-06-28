@@ -1,0 +1,267 @@
+@page "/mentors"
+@using Microsoft.AspNetCore.Components.Forms
+@inject IMentorService MentorService
+@inject IMatchRequestService MatchRequestService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h4 class="mb-0">
+                                <i class="bi bi-people-fill me-2"></i>
+                                멘토 찾기
+                            </h4>
+                        </div>
+                        <div class="col-auto">
+                            <div class="row g-2">
+                                <div class="col-auto">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           placeholder="기술 스택으로 검색" 
+                                           @bind="skillFilter" 
+                                           @oninput="OnFilterChanged" />
+                                </div>
+                                <div class="col-auto">
+                                    <select class="form-select" @bind="sortBy">
+                                        <option value="">정렬</option>
+                                        <option value="name">이름순</option>
+                                        <option value="skills">기술 스택순</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (mentors == null)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">로딩 중...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (!mentors.Any())
+                    {
+                        <div class="text-center text-muted">
+                            <i class="bi bi-search fs-1"></i>
+                            <p class="mt-2">검색 조건에 맞는 멘토가 없습니다.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            @foreach (var mentor in mentors)
+                            {
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <div class="text-center mb-3">
+                                                <img src="@GetMentorImageUrl(mentor)" 
+                                                     alt="@mentor.Name" 
+                                                     class="rounded-circle"
+                                                     style="width: 80px; height: 80px; object-fit: cover;" />
+                                            </div>
+                                            <h5 class="card-title text-center">@mentor.Name</h5>
+                                            <p class="card-text">@mentor.Bio</p>
+                                            
+                                            @if (!string.IsNullOrEmpty(mentor.Skills))
+                                            {
+                                                <div class="mb-3">
+                                                    <small class="text-muted">기술 스택:</small>
+                                                    <div class="mt-1">
+                                                        @foreach (var skill in mentor.Skills.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                                        {
+                                                            <span class="badge bg-secondary me-1">@skill.Trim()</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                            
+                                            <div class="d-grid">
+                                                <button class="btn btn-primary" 
+                                                        @onclick="() => OpenMatchRequestModal(mentor)">
+                                                    <i class="bi bi-envelope me-2"></i>
+                                                    매칭 요청
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 매칭 요청 모달 -->
+@if (showMatchRequestModal && selectedMentor != null)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @selectedMentor.Name 님에게 매칭 요청
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseMatchRequestModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="matchRequest" OnValidSubmit="HandleSendMatchRequest">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label for="message" class="form-label">메시지</label>
+                            <textarea id="message" 
+                                     class="form-control" 
+                                     rows="4"
+                                     @bind="matchRequest.Message"
+                                     placeholder="매칭 요청 메시지를 작성해주세요..."></textarea>
+                            <ValidationMessage For="() => matchRequest.Message" class="text-danger small" />
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseMatchRequestModal">
+                                취소
+                            </button>
+                            <button type="submit" 
+                                    class="btn btn-primary" 
+                                    disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <text>전송 중...</text>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-send me-2"></i>
+                                    <text>요청 보내기</text>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-check-circle text-success me-2"></i>
+                @successMessage
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                @errorMessage
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MentorListItem>? mentors;
+    private string skillFilter = string.Empty;
+    private string sortBy = string.Empty;
+    private bool showMatchRequestModal = false;
+    private MentorListItem? selectedMentor;
+    private MatchRequestCreate matchRequest = new();
+    private bool isSubmitting = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMentors();
+    }
+
+    private async Task LoadMentors()
+    {
+        mentors = await MentorService.GetMentorsAsync(
+            string.IsNullOrEmpty(skillFilter) ? null : skillFilter,
+            string.IsNullOrEmpty(sortBy) ? null : sortBy
+        );
+    }
+
+    private async Task OnFilterChanged(ChangeEventArgs e)
+    {
+        skillFilter = e.Value?.ToString() ?? string.Empty;
+        await LoadMentors();
+    }
+
+    private async Task OnSortChanged(ChangeEventArgs e)
+    {
+        sortBy = e.Value?.ToString() ?? string.Empty;
+        await LoadMentors();
+    }
+
+    private void OpenMatchRequestModal(MentorListItem mentor)
+    {
+        selectedMentor = mentor;
+        matchRequest = new MatchRequestCreate { MentorId = mentor.Id };
+        showMatchRequestModal = true;
+    }
+
+    private void CloseMatchRequestModal()
+    {
+        showMatchRequestModal = false;
+        selectedMentor = null;
+        matchRequest = new();
+    }
+
+    private async Task HandleSendMatchRequest()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var success = await MatchRequestService.CreateMatchRequestAsync(matchRequest);
+            if (success)
+            {
+                successMessage = $"{selectedMentor?.Name}님에게 매칭 요청을 보냈습니다.";
+                CloseMatchRequestModal();
+            }
+            else
+            {
+                errorMessage = "매칭 요청 전송에 실패했습니다.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "매칭 요청 전송 중 오류가 발생했습니다.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private string GetMentorImageUrl(MentorListItem mentor)
+    {
+        return !string.IsNullOrEmpty(mentor.ProfileImageUrl) 
+            ? mentor.ProfileImageUrl 
+            : "https://placehold.co/500x500.jpg?text=MENTOR";
+    }
+}

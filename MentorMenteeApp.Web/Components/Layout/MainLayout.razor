@@ -1,0 +1,63 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="page">
+    <header class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">멘토멘티 매칭</a>
+            
+            <div class="navbar-nav ms-auto">
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="navbar-text me-3">
+                            안녕하세요, @(context.User.Identity?.Name ?? "사용자")님
+                        </span>
+                        <button class="btn btn-outline-light" @onclick="LogoutAsync">
+                            로그아웃
+                        </button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="btn btn-outline-light me-2">로그인</a>
+                        <a href="/signup" class="btn btn-light">회원가입</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <AuthorizeView>
+                <Authorized>
+                    <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                        <NavMenu />
+                    </nav>
+                    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                        @Body
+                    </main>
+                </Authorized>
+                <NotAuthorized>
+                    <main class="col-12">
+                        @Body
+                    </main>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    오류가 발생했습니다.
+    <a href="." class="reload">새로고침</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private async Task LogoutAsync()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login");
+    }
+}

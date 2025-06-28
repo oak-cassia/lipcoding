@@ -1,0 +1,196 @@
+@page "/received-requests"
+@inject IMatchRequestService MatchRequestService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-inbox-fill me-2"></i>
+                        받은 매칭 요청
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (requests == null)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">로딩 중...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (!requests.Any())
+                    {
+                        <div class="text-center text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-2">아직 받은 매칭 요청이 없습니다.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            @foreach (var request in requests)
+                            {
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <div class="text-center mb-3">
+                                                <img src="@GetMenteeImageUrl(request)" 
+                                                     alt="@request.MenteeName" 
+                                                     class="rounded-circle"
+                                                     style="width: 80px; height: 80px; object-fit: cover;" />
+                                            </div>
+                                            <h5 class="card-title text-center">@request.MenteeName</h5>
+                                            <p class="text-center text-muted">@request.MenteeEmail</p>
+                                            
+                                            <div class="mb-3">
+                                                <strong>메시지:</strong>
+                                                <p class="mt-1">@request.Message</p>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <span class="badge @GetStatusBadgeClass(request.Status)">
+                                                    @GetStatusText(request.Status)
+                                                </span>
+                                                <small class="text-muted ms-2">
+                                                    @request.CreatedAt.ToString("yyyy-MM-dd HH:mm")
+                                                </small>
+                                            </div>
+                                            
+                                            @if (request.Status == "pending")
+                                            {
+                                                <div class="d-grid gap-2">
+                                                    <button class="btn btn-success" 
+                                                            @onclick="@(() => UpdateRequestStatus(request.Id, "accepted"))">
+                                                        <i class="bi bi-check-circle me-2"></i>
+                                                        수락
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" 
+                                                            @onclick="@(() => UpdateRequestStatus(request.Id, "rejected"))">
+                                                        <i class="bi bi-x-circle me-2"></i>
+                                                        거절
+                                                    </button>
+                                                </div>
+                                            }
+                                            else if (request.Status == "accepted")
+                                            {
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-warning" 
+                                                            @onclick="@(() => UpdateRequestStatus(request.Id, "pending"))">
+                                                        <i class="bi bi-arrow-clockwise me-2"></i>
+                                                        수락 취소
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-check-circle text-success me-2"></i>
+                @successMessage
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                @errorMessage
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MatchRequest>? requests;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    private async Task LoadRequests()
+    {
+        requests = await MatchRequestService.GetReceivedRequestsAsync();
+    }
+
+    private async Task UpdateRequestStatus(int requestId, string status)
+    {
+        try
+        {
+            var update = new MatchRequestUpdate { Status = status };
+            var success = await MatchRequestService.UpdateRequestStatusAsync(requestId, update);
+            
+            if (success)
+            {
+                successMessage = status switch
+                {
+                    "accepted" => "매칭 요청을 수락했습니다.",
+                    "rejected" => "매칭 요청을 거절했습니다.",
+                    "pending" => "수락을 취소했습니다.",
+                    _ => "요청이 업데이트되었습니다."
+                };
+                await LoadRequests();
+            }
+            else
+            {
+                errorMessage = "요청 상태 업데이트에 실패했습니다.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "요청 처리 중 오류가 발생했습니다.";
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "pending" => "bg-warning",
+            "accepted" => "bg-success",
+            "rejected" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetStatusText(string status)
+    {
+        return status.ToLower() switch
+        {
+            "pending" => "대기중",
+            "accepted" => "수락됨",
+            "rejected" => "거절됨",
+            _ => "알 수 없음"
+        };
+    }
+
+    private string GetMenteeImageUrl(MatchRequest request)
+    {
+        return !string.IsNullOrEmpty(request.MenteeProfileImageUrl) 
+            ? request.MenteeProfileImageUrl 
+            : "https://placehold.co/500x500.jpg?text=MENTEE";
+    }
+}

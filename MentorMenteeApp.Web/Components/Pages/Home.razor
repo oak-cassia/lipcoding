@@ -1,0 +1,18 @@
+﻿@page "/"
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (isAuthenticated)
+        {
+            Navigation.NavigateTo("/profile");
+        }
+        else
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

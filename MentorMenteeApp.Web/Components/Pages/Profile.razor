@@ -1,0 +1,231 @@
+@page "/profile"
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-circle me-2"></i>
+                        내 프로필
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (userProfile == null)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">로딩 중...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="updateRequest" OnValidSubmit="HandleUpdateProfile">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    <div class="mb-3">
+                                        <img src="@GetProfileImageUrl()" 
+                                             alt="프로필 이미지" 
+                                             class="img-thumbnail"
+                                             style="width: 200px; height: 200px; object-fit: cover;" />
+                                        <div class="mt-2">
+                                            <InputFile OnChange="HandleImageUpload" 
+                                                      class="form-control form-control-sm"
+                                                      accept=".jpg,.jpeg,.png" />
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">이름</label>
+                                        <InputText id="name" 
+                                                  class="form-control" 
+                                                  @bind-Value="updateRequest.Name" />
+                                        <ValidationMessage For="() => updateRequest.Name" class="text-danger small" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="bio" class="form-label">소개글</label>
+                                        <InputTextArea id="bio" 
+                                                      class="form-control" 
+                                                      rows="4"
+                                                      @bind-Value="updateRequest.Bio" />
+                                        <ValidationMessage For="() => updateRequest.Bio" class="text-danger small" />
+                                    </div>
+
+                                    @if (userProfile.Role == "mentor")
+                                    {
+                                        <div class="mb-3">
+                                            <label for="skills" class="form-label">기술 스택</label>
+                                            <InputText id="skills" 
+                                                      class="form-control" 
+                                                      @bind-Value="updateRequest.Skills"
+                                                      placeholder="예: C#, JavaScript, React" />
+                                            <ValidationMessage For="() => updateRequest.Skills" class="text-danger small" />
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" 
+                                        class="btn btn-primary" 
+                                        disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <text>저장 중...</text>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <text>프로필 저장</text>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                        
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success mt-3">
+                                <i class="bi bi-check-circle me-2"></i>
+                                @successMessage
+                            </div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger mt-3">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                @errorMessage
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserProfile? userProfile;
+    private UpdateProfileRequest updateRequest = new();
+    private bool isLoading = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+    private bool hasInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadProfile();
+            hasInitialized = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadProfile()
+    {
+        userProfile = await UserService.GetProfileAsync();
+        if (userProfile != null)
+        {
+            updateRequest = new UpdateProfileRequest
+            {
+                Name = userProfile.Name,
+                Bio = userProfile.Bio,
+                Skills = userProfile.Skills
+            };
+        }
+    }
+
+    private async Task HandleUpdateProfile()
+    {
+        isLoading = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var success = await UserService.UpdateProfileAsync(updateRequest);
+            if (success)
+            {
+                successMessage = "프로필이 성공적으로 업데이트되었습니다.";
+                await LoadProfile();
+            }
+            else
+            {
+                errorMessage = "프로필 업데이트에 실패했습니다.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "프로필 업데이트 중 오류가 발생했습니다.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            if (file.Size > 1024 * 1024) // 1MB
+            {
+                errorMessage = "이미지 크기는 1MB를 초과할 수 없습니다.";
+                return;
+            }
+
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png" };
+            if (!allowedTypes.Contains(file.ContentType))
+            {
+                errorMessage = "JPG, JPEG, PNG 형식의 이미지만 업로드할 수 있습니다.";
+                return;
+            }
+
+            try
+            {
+                var buffer = new byte[file.Size];
+                await file.OpenReadStream().ReadAsync(buffer);
+                
+                var success = await UserService.UploadProfileImageAsync(buffer, file.Name);
+                if (success)
+                {
+                    successMessage = "프로필 이미지가 업데이트되었습니다.";
+                    await LoadProfile();
+                }
+                else
+                {
+                    errorMessage = "이미지 업로드에 실패했습니다.";
+                }
+            }
+            catch (Exception)
+            {
+                errorMessage = "이미지 업로드 중 오류가 발생했습니다.";
+            }
+        }
+    }
+
+    private string GetProfileImageUrl()
+    {
+        if (userProfile != null && !string.IsNullOrEmpty(userProfile.ProfileImageUrl))
+        {
+            return userProfile.ProfileImageUrl;
+        }
+        
+        return userProfile?.Role == "mentor" 
+            ? "https://placehold.co/500x500.jpg?text=MENTOR"
+            : "https://placehold.co/500x500.jpg?text=MENTEE";
+    }
+}

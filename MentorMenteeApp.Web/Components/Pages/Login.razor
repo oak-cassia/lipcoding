@@ -1,0 +1,105 @@
+@page "/login"
+@using Microsoft.AspNetCore.Components.Forms
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveServer
+
+<div class="container-fluid d-flex align-items-center justify-content-center min-vh-100">
+    <div class="card shadow-lg" style="width: 400px;">
+        <div class="card-header bg-primary text-white text-center py-3">
+            <h4 class="mb-0">
+                <i class="bi bi-box-arrow-in-right me-2"></i>
+                로그인
+            </h4>
+        </div>
+        <div class="card-body p-4">
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+                
+                <div class="mb-3">
+                    <label for="email" class="form-label">이메일</label>
+                    <InputText id="email" 
+                              class="form-control" 
+                              @bind-Value="loginModel.Email" 
+                              placeholder="이메일을 입력하세요" />
+                    <ValidationMessage For="() => loginModel.Email" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">비밀번호</label>
+                    <InputText id="password" 
+                              type="password" 
+                              class="form-control" 
+                              @bind-Value="loginModel.Password" 
+                              placeholder="비밀번호를 입력하세요" />
+                    <ValidationMessage For="() => loginModel.Password" class="text-danger small" />
+                </div>
+
+                <button type="submit" 
+                        class="btn btn-primary w-100 py-2" 
+                        disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <text>로그인 중</text>
+                    }
+                    else
+                    {
+                        <i class="bi bi-box-arrow-in-right me-2"></i>
+                        <text>로그인</text>
+                    }
+                </button>
+            </EditForm>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    @errorMessage
+                </div>
+            }
+        </div>
+        <div class="card-footer text-center bg-light">
+            <small class="text-muted">
+                계정이 없으신가요? 
+                <a href="/signup" class="text-decoration-none">회원가입</a>
+            </small>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginRequest loginModel = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel);
+            
+            if (result != null)
+            {
+                AuthStateProvider.NotifyUserAuthentication(result.Token);
+                Navigation.NavigateTo("/profile");
+            }
+            else
+            {
+                errorMessage = "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "로그인 중 오류가 발생했습니다. 다시 시도해주세요.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

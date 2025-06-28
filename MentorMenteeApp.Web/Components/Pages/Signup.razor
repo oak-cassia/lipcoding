@@ -1,0 +1,160 @@
+@page "/signup"
+@using Microsoft.AspNetCore.Components.Forms
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="container-fluid d-flex align-items-center justify-content-center min-vh-100">
+    <div class="card shadow-lg" style="width: 450px;">
+        <div class="card-header bg-success text-white text-center py-3">
+            <h4 class="mb-0">
+                <i class="bi bi-person-plus me-2"></i>
+                회원가입
+            </h4>
+        </div>
+        <div class="card-body p-4">
+            <EditForm Model="signupModel" OnValidSubmit="HandleSignup">
+                <DataAnnotationsValidator />
+                
+                <div class="mb-3">
+                    <label for="name" class="form-label">이름</label>
+                    <InputText id="name" 
+                              class="form-control" 
+                              @bind-Value="signupModel.Name" 
+                              placeholder="이름을 입력하세요" />
+                    <ValidationMessage For="() => signupModel.Name" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">이메일</label>
+                    <InputText id="email" 
+                              class="form-control" 
+                              @bind-Value="signupModel.Email" 
+                              placeholder="이메일을 입력하세요" />
+                    <ValidationMessage For="() => signupModel.Email" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">비밀번호</label>
+                    <InputText id="password" 
+                              type="password" 
+                              class="form-control" 
+                              @bind-Value="signupModel.Password" 
+                              placeholder="비밀번호를 입력하세요 (최소 6자)" />
+                    <ValidationMessage For="() => signupModel.Password" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">역할</label>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="radio" 
+                                       id="mentor" 
+                                       name="role" 
+                                       value="mentor" 
+                                       checked="@(signupModel.Role == "mentor")" 
+                                       @onchange="@(e => signupModel.Role = e.Value?.ToString() ?? string.Empty)" />
+                                <label class="form-check-label" for="mentor">
+                                    <i class="bi bi-mortarboard me-2"></i>
+                                    멘토
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="radio" 
+                                       id="mentee" 
+                                       name="role" 
+                                       value="mentee" 
+                                       checked="@(signupModel.Role == "mentee")" 
+                                       @onchange="@(e => signupModel.Role = e.Value?.ToString())" />
+                                <label class="form-check-label" for="mentee">
+                                    <i class="bi bi-person me-2"></i>
+                                    멘티
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" 
+                        class="btn btn-success w-100 py-2" 
+                        disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <text>가입 중</text>
+                    }
+                    else
+                    {
+                        <i class="bi bi-person-plus me-2"></i>
+                        <text>회원가입</text>
+                    }
+                </button>
+            </EditForm>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    @errorMessage
+                </div>
+            }
+            
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success mt-3 mb-0">
+                    <i class="bi bi-check-circle me-2"></i>
+                    @successMessage
+                </div>
+            }
+        </div>
+        <div class="card-footer text-center bg-light">
+            <small class="text-muted">
+                이미 계정이 있으신가요? 
+                <a href="/login" class="text-decoration-none">로그인</a>
+            </small>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SignupRequest signupModel = new() { Role = "mentee" };
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    private async Task HandleSignup()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        
+        try
+        {
+            var result = await AuthService.SignupAsync(signupModel);
+            
+            if (result)
+            {
+                successMessage = "회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.";
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = "회원가입에 실패했습니다. 입력 정보를 확인해주세요.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "회원가입 중 오류가 발생했습니다. 다시 시도해주세요.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

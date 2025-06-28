@@ -1,0 +1,189 @@
+@page "/my-requests"
+@inject IMatchRequestService MatchRequestService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-list-check me-2"></i>
+                        내 매칭 요청
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (requests == null)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">로딩 중...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (!requests.Any())
+                    {
+                        <div class="text-center text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-2">아직 보낸 매칭 요청이 없습니다.</p>
+                            <a href="/mentors" class="btn btn-primary">멘토 찾아보기</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>멘토</th>
+                                        <th>메시지</th>
+                                        <th>상태</th>
+                                        <th>요청일</th>
+                                        <th>작업</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var request in requests)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="@GetMentorImageUrl(request)" 
+                                                         alt="@request.MentorName" 
+                                                         class="rounded-circle me-2"
+                                                         style="width: 40px; height: 40px; object-fit: cover;" />
+                                                    <div>
+                                                        <div class="fw-bold">@request.MentorName</div>
+                                                        <small class="text-muted">@request.MentorEmail</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style="max-width: 200px;" class="text-truncate">
+                                                    @request.Message
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge @GetStatusBadgeClass(request.Status)">
+                                                    @GetStatusText(request.Status)
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <small>@request.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                                            </td>
+                                            <td>
+                                                @if (request.Status == "pending")
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                            @onclick="() => DeleteRequest(request.Id)">
+                                                        <i class="bi bi-trash me-1"></i>
+                                                        취소
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-check-circle text-success me-2"></i>
+                @successMessage
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                @errorMessage
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<MatchRequest>? requests;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    private async Task LoadRequests()
+    {
+        requests = await MatchRequestService.GetMyRequestsAsync();
+    }
+
+    private async Task DeleteRequest(int requestId)
+    {
+        try
+        {
+            var success = await MatchRequestService.DeleteRequestAsync(requestId);
+            if (success)
+            {
+                successMessage = "매칭 요청이 취소되었습니다.";
+                await LoadRequests();
+            }
+            else
+            {
+                errorMessage = "요청 취소에 실패했습니다.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "요청 취소 중 오류가 발생했습니다.";
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "pending" => "bg-warning",
+            "accepted" => "bg-success",
+            "rejected" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetStatusText(string status)
+    {
+        return status.ToLower() switch
+        {
+            "pending" => "대기중",
+            "accepted" => "수락됨",
+            "rejected" => "거절됨",
+            _ => "알 수 없음"
+        };
+    }
+
+    private string GetMentorImageUrl(MatchRequest request)
+    {
+        return !string.IsNullOrEmpty(request.MentorProfileImageUrl) 
+            ? request.MentorProfileImageUrl 
+            : "https://placehold.co/500x500.jpg?text=MENTOR";
+    }
+}
