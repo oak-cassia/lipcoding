@@ -1,0 +1,38 @@
+# Copilot will ignore these files and directories
+# Sensitive or irrelevant files
+*.log
+*.tmp
+node_modules/
+.env*
+dist/
+build/
+bin/
+obj/
+
+# Large data files
+*.csv
+*.json
+data/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Documentation that shouldn't influence code suggestions
+docs/archive/
+legacy/
+
+# .NET specific
+*.user
+*.suo
+*.cache
+*.docstates
+TestResults/
+packages/
+
+# Visual Studio
+.vs/
+*.vscode/

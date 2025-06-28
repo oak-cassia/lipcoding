@@ -51,6 +51,20 @@ temp/
 # Database
 *.sqlite
 *.db
+*.db-shm
+*.db-wal
+
+# .NET/C# Build artifacts
+bin/
+obj/
+*.dll
+*.pdb
+*.exe
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
 
 # Python
 __pycache__/

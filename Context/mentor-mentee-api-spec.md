@@ -220,14 +220,6 @@
           "imageUrl": "/images/mentor/3",
           "skills": ["React", "Vue"]
         }
-      },
-      {
-        "id": 4,
-        "name": "이뒷단",
-        "role": "mentor",
-        "bio": "Backend mentor",
-        "imageUrl": "/images/mentor/4",
-        "skills": ["Spring Boot", "FastAPI"]
       }
     ]
     ```
