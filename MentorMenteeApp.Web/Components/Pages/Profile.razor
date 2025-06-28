@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IUserService UserService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="container mt-4">
     <div class="row">
@@ -121,29 +122,34 @@
     private bool isLoading = false;
     private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
-    private bool hasInitialized = false;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (!user.Identity.IsAuthenticated)
         {
-            await LoadProfile();
-            hasInitialized = true;
+            Navigation.NavigateTo("/login");
+            return;
         }
+        
+        await LoadProfile();
     }
 
     private async Task LoadProfile()
     {
         userProfile = await UserService.GetProfileAsync();
-        if (userProfile != null)
+        if (userProfile == null)
         {
-            updateRequest = new UpdateProfileRequest
-            {
-                Name = userProfile.Name,
-                Bio = userProfile.Bio,
-                Skills = userProfile.Skills
-            };
+            userProfile = new UserProfile();
         }
+        
+        updateRequest.Name = userProfile.Name;
+        updateRequest.Bio = userProfile.Bio;
+        updateRequest.Skills = userProfile.Skills;
+        
+        StateHasChanged();
     }
 
     private async Task HandleUpdateProfile()
